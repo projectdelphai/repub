@@ -1,0 +1,103 @@
+#! /usr/bin/ruby
+
+require 'highline/import'
+require 'fileutils'
+
+user = `echo $USER`
+folder = ARGV.shift
+
+time=Time.now
+title=time.strftime("%Y-%m-%d")
+id=title
+creator=user
+language="en"
+rights="Public Domain"
+files=`find "#{folder}" -type f`.split(/\n/)
+chapters=[]
+files.each { |x|
+  x=`basename "#{x}"`
+  chapters.push x
+}
+chapterlist=""
+spine=""
+navmap=""
+0.upto(files.size) { |i|
+  begin
+  chapterlist = chapterlist + "<item id=\"chapter#{i}\" href=\"content/#{chapters[i].strip}\" media-type=\"application/xhtml+xml\"/>\n"
+  spine = spine + "<itemref idref=\"chapter#{i}\" />\n" 
+  navmap = navmap + "<navPoint id=\"navpoint-#{i}\" playOrder=\"#{i}\">
+      <navLabel>
+        <text>#{chapters[i].gsub('_', ' ').gsub('.html', '').strip}</text>
+      </navLabel>
+      <content src=\"content/#{chapters[i].strip}\"/>
+    </navPoint>\n"
+  rescue
+    nil
+  end
+}
+toc = '<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+  <head>
+    <meta name="dtb:uid" content="' + id + '"/>
+    <meta name="dtb:depth" content="1"/>
+    <meta name="dtb:totalPageCount" content="0"/>
+    <meta name="dtb:maxPageNumber" content="0"/>
+  </head>
+  <docTitle>
+    <text>' + title + '</text>
+  </docTitle>
+  <navMap>' +
+  navmap + '
+  </navMap>
+</ncx>'
+metadata='<package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="bookid">
+    <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
+        <dc:title>' + title + '</dc:title>
+        <dc:creator opf:file-as="kclayr" opf:role="ill">kclayr</dc:creator>
+        <dc:language>en-US</dc:language>
+        <dc:identifier id="bookid">' + id + '</dc:identifier>
+        <dc:rights>' + rights + '</dc:rights>
+    </metadata>
+    <manifest>
+        <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>' +
+	chapterlist +
+   ' </manifest>
+    <spine toc="ncx">' +
+    spine + '
+    </spine>
+</package>'
+container='<?xml version="1.0"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+   <rootfiles>
+      <rootfile full-path="metadata.opf" media-type="application/oebps-package+xml"/>
+   </rootfiles>
+</container>'
+
+begin
+Dir.mkdir("#{folder}/#{title}")
+Dir.mkdir("#{folder}/#{title}/META-INF")
+Dir.mkdir("#{folder}/#{title}/content")
+rescue
+  nil
+end
+File.open("#{folder}/#{title}/mimetype", "w") { |f| f.write("application/epub+zip") }
+File.open("#{folder}/#{title}/toc.ncx", "w") { |f| f.write(toc) }
+File.open("#{folder}/#{title}/metadata.opf", "w") { |f| f.write(metadata) }
+File.open("#{folder}/#{title}/META-INF/container.xml", "w") { |f| f.write(container) }
+
+0.upto(files.size) { |i|
+  begin
+  FileUtils.mv("#{files[i]}", "#{folder}/#{title}/content")
+  rescue
+    nil
+  end
+}
+Dir.chdir("#{folder}/#{title}") { 
+  puts `zip -Xr9D #{folder}/#{title}.epub mimetype * 1> /dev/null`
+}
+begin
+FileUtils.mv("#{folder}#{title}/#{title}.epub", "#{folder}#{title}.epub")
+rescue
+  nil
+end
+FileUtils.rm_r("#{folder}#{title}")
+
