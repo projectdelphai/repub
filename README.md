@@ -19,7 +19,7 @@ Installation
 3. The command is "ruby repub path/to/files/" notice the ending slash
 4. the epub will be created in the folder and the original files will be deleted
 
-Todon
+Todo
 -------------
 * add optional delete for files
 * add options for creator
