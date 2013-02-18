@@ -4,8 +4,13 @@ require 'highline/import'
 require 'fileutils'
 
 user = `echo $USER`
-folder = ARGV.shift
 
+# must end in / 
+# adds / if folder doesn't already contain it
+folder = ARGV.shift
+folder = "#{folder}/" if !folder.end_with?('/')
+
+# variables
 time=Time.now
 title=time.strftime("%Y-%m-%d")
 id=title
@@ -21,8 +26,12 @@ files.each { |x|
 chapterlist=""
 spine=""
 navmap=""
+
+# create variables for epub folder
+# contains code to be inserted into files
 0.upto(files.size) { |i|
   begin
+  # create chapterslist of files
   chapterlist = chapterlist + "<item id=\"chapter#{i}\" href=\"content/#{chapters[i].strip}\" media-type=\"application/xhtml+xml\"/>\n"
   spine = spine + "<itemref idref=\"chapter#{i}\" />\n" 
   navmap = navmap + "<navPoint id=\"navpoint-#{i}\" playOrder=\"#{i}\">
@@ -72,32 +81,35 @@ container='<?xml version="1.0"?>
    </rootfiles>
 </container>'
 
+# create files and populate with variables
 begin
-Dir.mkdir("#{folder}/#{title}")
-Dir.mkdir("#{folder}/#{title}/META-INF")
-Dir.mkdir("#{folder}/#{title}/content")
+Dir.mkdir("#{folder}#{title}")
+Dir.mkdir("#{folder}#{title}/META-INF")
+Dir.mkdir("#{folder}#{title}/content")
 rescue
   nil
 end
-File.open("#{folder}/#{title}/mimetype", "w") { |f| f.write("application/epub+zip") }
-File.open("#{folder}/#{title}/toc.ncx", "w") { |f| f.write(toc) }
-File.open("#{folder}/#{title}/metadata.opf", "w") { |f| f.write(metadata) }
-File.open("#{folder}/#{title}/META-INF/container.xml", "w") { |f| f.write(container) }
+File.open("#{folder}#{title}/mimetype", "w") { |f| f.write("application/epub+zip") }
+File.open("#{folder}#{title}/toc.ncx", "w") { |f| f.write(toc) }
+File.open("#{folder}#{title}/metadata.opf", "w") { |f| f.write(metadata) }
+File.open("#{folder}#{title}/META-INF/container.xml", "w") { |f| f.write(container) }
 
+# move files to content folder
 0.upto(files.size) { |i|
   begin
-  FileUtils.mv("#{files[i]}", "#{folder}/#{title}/content")
+  FileUtils.mv("#{files[i]}", "#{folder}#{title}/content")
   rescue
     nil
   end
 }
-Dir.chdir("#{folder}/#{title}") { 
-  puts `zip -Xr9D #{folder}/#{title}.epub mimetype * 1> /dev/null`
+
+
+# zip folder into an epub
+Dir.chdir("#{folder}#{title}") { 
+  puts `zip -Xr9D #{title}.epub mimetype * 1> /dev/null`
 }
-begin
+# move epub out of raw data folder into specified folder
 FileUtils.mv("#{folder}#{title}/#{title}.epub", "#{folder}#{title}.epub")
-rescue
-  nil
-end
+# remove raw data folder
 FileUtils.rm_r("#{folder}#{title}")
 
